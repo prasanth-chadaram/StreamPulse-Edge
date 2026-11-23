@@ -1,0 +1,21 @@
+# Core (required)
+numpy>=1.24
+opencv-python-headless>=4.8
+psutil>=5.9
+PyYAML>=6.0
+fastapi>=0.100
+uvicorn>=0.22
+websockets>=11.0
+
+# Optional INT8 inference backend (install only when using a real model)
+# onnxruntime>=1.16
+# On Intel CPUs the default CPUExecutionProvider with int8 ONNX is fastest here.
+# openvino>=2024.0   # alternative: export to OpenVINO IR INT8 instead
+
+# Optional (Prometheus client not required: /metrics is generated directly)
+# prometheus-client>=0.19
+
+# Tests / report generation
+pytest>=7.0
+scipy>=1.10          # robust Theil-Sen leak slope in soak_test.py (optional)
+matplotlib>=3.7      # assets/soak_telemetry.png

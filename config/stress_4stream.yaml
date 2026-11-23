@@ -1,0 +1,57 @@
+# Backpressure stress test: four REAL streams (two bottle, two worker) pushing
+# the i3-1005G1. Backpressure thresholds are tightened so skipping activates.
+
+log_level: WARNING
+
+streams:
+  - name: bottle-line
+    source: rtsp://127.0.0.1:8554/bottle
+    roi_line: [0.85, 0.0, 0.85, 1.0]
+    dwell_max_s: 8.0
+  - name: worker-zone
+    source: rtsp://127.0.0.1:8554/worker
+    roi_line: [0.60, 0.0, 0.60, 1.0]
+    dwell_max_s: 10.0
+  - name: bottle-line-2
+    source: rtsp://127.0.0.1:8554/bottle3
+    roi_line: [0.45, 0.0, 0.45, 1.0]
+    dwell_max_s: 8.0
+  - name: worker-zone-2
+    source: rtsp://127.0.0.1:8554/worker4
+    roi_line: [0.45, 0.0, 0.45, 1.0]
+    dwell_max_s: 10.0
+
+detector:
+  model_path: ${MODEL_DIR}/yolo11n_416_int8.onnx
+  backend: onnxruntime
+  input_size: 416
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  max_detections: 32
+  num_threads: 2
+
+pipeline:
+  ring_capacity: 3
+  ingest_fps: 15
+  frame_width: 640
+  frame_height: 480
+  tracker_max_age: 60
+  tracker_iou_threshold: 0.25
+  line_hysteresis_px: 6.0
+  latency_window: 300
+
+backpressure:
+  cpu_high_pct: 70              # lower threshold to force skipping under load
+  cpu_low_pct: 60
+  rss_high_mb: 2048
+  rss_critical_mb: 3072
+  ram_high_pct: 80
+  max_skip_ratio: 7
+  control_interval_s: 0.5
+  recovery_interval_s: 2.0
+
+web:
+  enabled: true
+  host: 0.0.0.0
+  port: 8000
+  mjpeg_fps: 8

@@ -1,0 +1,14 @@
+.venv/
+*.onnx
+*.mp4
+*.ts
+*.pid
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+mediamtx
+mediamtx_*
+*.part
+reports/*samples*.json
+*.log

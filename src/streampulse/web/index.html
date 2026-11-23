@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StreamPulse-Edge · Live Dashboard</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#121922;--line:#23303f;--txt:#d7e2ee;--mut:#7b8ea3;--ok:#3ddc84;--warn:#ffb020;--bad:#ff5c5c;--acc:#48a9ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+  header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#0f1620,#0b0f14)}
+  h1{font-size:16px;margin:0;letter-spacing:.5px}
+  h1 small{color:var(--acc);font-size:11px}
+  .pill{padding:4px 10px;border:1px solid var(--line);border-radius:20px;background:#0e151d;color:var(--mut)}
+  .pill b{color:var(--txt)}
+  .pill.state-THROTTLED{border-color:var(--warn);color:var(--warn)}
+  .pill.state-CRITICAL{border-color:var(--bad);color:var(--bad)}
+  .pill.state-NOMINAL{border-color:var(--ok);color:var(--ok)}
+  main{padding:18px 20px;display:grid;grid-template-columns:minmax(320px,34%) 1fr;gap:18px}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:0 0 12px}
+  canvas{width:100%;height:260px;display:block}
+  .legend{display:flex;gap:16px;margin-top:8px;color:var(--mut);font-size:11px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+  .streams{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .tile .imgwrap{position:relative;background:#000;aspect-ratio:4/3}
+  .tile img{width:100%;height:100%;object-fit:contain;display:block}
+  .badge{position:absolute;top:8px;left:8px;background:#000a;padding:3px 7px;border-radius:5px;color:var(--acc);font-size:11px}
+  .badge.off{color:var(--bad)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+  .cell{background:var(--panel);padding:8px 10px}
+  .cell span{display:block;color:var(--mut);font-size:10px;text-transform:uppercase}
+  .cell b{font-size:15px;font-weight:600}
+  .good{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  footer{padding:10px 20px;color:var(--mut);font-size:11px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>StreamPulse-Edge <small>v1.0 · CPU edge analytics</small></h1>
+  <div class="pill" id="p-state">STATE <b>—</b></div>
+  <div class="pill">CPU <b id="p-cpu">—</b></div>
+  <div class="pill">RSS <b id="p-rss">—</b></div>
+  <div class="pill">SKIP <b id="p-skip">—</b></div>
+  <div class="pill">INF <b id="p-inf">—</b></div>
+  <div class="pill">COUNTED <b id="p-count">0</b></div>
+  <div class="pill">ANOMALIES <b id="p-anom">0</b></div>
+</header>
+<main>
+  <section class="card">
+    <h2>Resource &amp; latency history</h2>
+    <canvas id="graph" width="600" height="260"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--acc)"></i>RSS MB</span>
+      <span><i style="background:var(--warn)"></i>p95 latency ms</span>
+      <span><i style="background:var(--ok)"></i>CPU %</span>
+    </div>
+  </section>
+  <section>
+    <div class="streams" id="streams"></div>
+  </section>
+</main>
+<footer>Live via WebSocket · /metrics for Prometheus · MJPEG per stream · adaptive backpressure enabled</footer>
+<script>
+const hist={rss:[],lat:[],cpu:[]}, MAX=120;
+const tiles={};
+const canvas=document.getElementById('graph'), ctx=canvas.getContext('2d');
+function tile(name,idx){
+  const d=document.createElement('div'); d.className='tile';
+  d.innerHTML=`<div class="imgwrap"><img src="/api/stream/${idx}/mjpeg"><span class="badge" id="b-${idx}">${name}</span></div>
+  <div class="grid">
+    <div class="cell"><span>Capture FPS</span><b id="f-${idx}">–</b></div>
+    <div class="cell"><span>Infer FPS</span><b id="if-${idx}">–</b></div>
+    <div class="cell"><span>E2E ms</span><b id="l-${idx}">–</b></div>
+    <div class="cell"><span>p95 ms</span><b id="p95-${idx}">–</b></div>
+    <div class="cell"><span>Dropped %</span><b id="d-${idx}">–</b></div>
+    <div class="cell"><span>Count</span><b id="c-${idx}">0</b></div>
+  </div>`;
+  document.getElementById('streams').appendChild(d);
+  tiles[name]=idx;
+}
+function draw(){
+  const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#1b2634';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){ctx.beginPath();ctx.moveTo(0,h*i/4);ctx.lineTo(w,h*i/4);ctx.stroke()}
+  const series=[[hist.rss,'#48a9ff',4096],[hist.lat,'#ffb020',300],[hist.cpu,'#3ddc84',100]];
+  series.forEach(([data,color,max])=>{
+    if(data.length<2)return;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+    data.forEach((v,i)=>{const x=i/(MAX-1)*w,y=h-Math.min(1,v/max)*h;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+    ctx.stroke();
+  });
+}
+function connect(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  const ws=new WebSocket(`${proto}://${location.host}/ws/stats`);
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    const ps=document.getElementById('p-state');ps.className='pill state-'+m.state;ps.innerHTML=`STATE <b>${m.state}</b>`;
+    document.getElementById('p-cpu').textContent=m.cpu+'%';
+    document.getElementById('p-rss').textContent=m.rss_mb+' MB';
+    document.getElementById('p-skip').textContent=m.skip;
+    document.getElementById('p-inf').textContent=m.inf_ms+' ms';
+    document.getElementById('p-count').textContent=m.total_counted;
+    document.getElementById('p-anom').textContent=m.total_anomalies;
+    for(const [name,v] of Object.entries(m.streams)){
+      if(!(name in tiles))tile(name,Object.keys(m.streams).indexOf(name));
+      const i=tiles[name];
+      const set=(id,val,cls)=>{const el=document.getElementById(id+'-'+i);if(el){el.textContent=val;el.className=cls||''}};
+      const badge=document.getElementById('b-'+i);
+      if(badge){badge.className='badge'+(v.connected?'':' off');badge.textContent=name+(v.connected?'':' OFFLINE')}
+      set('f',v.fps.toFixed(1),v.fps>10?'good':'warn');
+      set('if',v.inf_fps.toFixed(1));
+      set('l',v.latency_ms.toFixed(0),v.latency_ms<150?'good':'warn');
+      set('p95',v.latency_p95_ms.toFixed(0));
+      set('d',v.dropped_pct.toFixed(1),v.dropped_pct>20?'bad':'good');
+      set('c',v.counted);
+    }
+    hist.rss.push(m.rss_mb);hist.lat.push(Math.max(...Object.values(m.streams).map(s=>s.latency_p95_ms||0)));
+    hist.cpu.push(m.cpu);
+    for(const k in hist)if(hist[k].length>MAX)hist[k].shift();
+    draw();
+  };
+  ws.onclose=()=>setTimeout(connect,1500);
+}
+connect();draw();
+</script>
+</body>
+</html>
