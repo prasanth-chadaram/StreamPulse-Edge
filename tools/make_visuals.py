@@ -30,7 +30,7 @@ from streampulse.config import AppConfig  # noqa: E402
 from streampulse.detector import DetectorBackend, draw_overlay  # noqa: E402
 from streampulse.tracker import IoUTracker  # noqa: E402
 
-VIDEOS = Path("/mnt/data/datasets/streampulse_videos")
+VIDEOS = Path(os.environ.get("DATA_DIR", str(ROOT / "data" / "videos")))
 ASSETS = ROOT / "assets"
 
 
