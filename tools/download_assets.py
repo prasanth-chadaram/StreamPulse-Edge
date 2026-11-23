@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
-"""Download all real assets for StreamPulse-Edge onto the HDD (/mnt/data).
+"""Download the Intel CC-BY sample videos and the YOLO11n ONNX weights.
 
-Downloads:
-  * two CC-BY-4.0 industrial sample videos from Intel IoT DevKit
-  * pretrained yolo11n_416.onnx (COCO 80) from Hugging Face vitorsalomao/yolo11n-onnx
-
-Reusable and idempotent: existing files are verified and skipped. Raw video
-bytes and ONNX weights never touch the SSD -- set --videos-dir / --models-dir
-to relocate if the HDD is mounted elsewhere.
+Idempotent. Destinations come from DATA_DIR / MODEL_DIR or CLI flags.
 """
 
 from __future__ import annotations
@@ -28,8 +22,8 @@ VIDEOS = {
 }
 HF_REPO = "vitorsalomao/yolo11n-onnx"
 HF_FILE = "yolo11n_416.onnx"
-DEFAULT_VIDEOS = Path("/mnt/data/datasets/streampulse_videos")
-DEFAULT_MODELS = Path("/mnt/data/models/streampulse")
+DEFAULT_VIDEOS = Path(os.environ.get("DATA_DIR", "./data/videos"))
+DEFAULT_MODELS = Path(os.environ.get("MODEL_DIR", "./models"))
 
 
 def download_url(url: str, dest: Path) -> Path:

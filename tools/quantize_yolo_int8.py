@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-"""Quantize the downloaded YOLO11n FP32 ONNX model to INT8 and verify it.
+"""Calibrate YOLO11n to INT8 and verify it against FP32.
 
-Strategy (automatic, in order):
-  1. static QDQ INT8 calibrated on 60 real frames from both Intel videos;
-  2. static QDQ with the final Detect head excluded (keeps box scores in FP32);
-  3. quantize_dynamic (weights INT8, activations FP32) as a last resort.
-
-Every candidate is evaluated with the SAME decoder used in production
-(``streampulse.detector.DetectorBackend``): detection count, mean confidence,
-coordinate sanity, and single-frame CPU latency are compared against FP32.
-A candidate is rejected if it collapses confidence or drops detections.
+Tries static QOperator, static with the Detect head in FP32, then dynamic.
+Each candidate is scored with the production decoder for detection count,
+confidence range, box sanity, and single-frame latency.
 """
 
 from __future__ import annotations
@@ -164,8 +158,8 @@ def acceptable(cand, ref) -> bool:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--videos-dir", default="/mnt/data/datasets/streampulse_videos")
-    ap.add_argument("--models-dir", default="/mnt/data/models/streampulse")
+    ap.add_argument("--videos-dir", default=os.environ.get("DATA_DIR", "./data/videos"))
+    ap.add_argument("--models-dir", default=os.environ.get("MODEL_DIR", "./models"))
     ap.add_argument("--fp32", default=None)
     ap.add_argument("--output", default=None)
     ap.add_argument("--calib-frames", type=int, default=60)
