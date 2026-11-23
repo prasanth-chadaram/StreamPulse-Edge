@@ -9,7 +9,7 @@
 #   NO_MEDIAMTX=1 tools/start_rtsp_sim.sh                # UDP fallback
 #
 # Env:
-#   VIDEOS_DIR      /mnt/data/datasets/streampulse_videos
+#   DATA_DIR        directory with the two Intel videos (default ./data/videos)
 #   NUM_STREAMS     2..4
 #   FPS / WIDTH / HEIGHT
 #   RTSP_HOST / RTSP_PORT
@@ -17,7 +17,7 @@
 #   NO_MEDIAMTX=1   force UDP fallback
 set -euo pipefail
 
-VIDEOS_DIR="${VIDEOS_DIR:-/mnt/data/datasets/streampulse_videos}"
+VIDEOS_DIR="${DATA_DIR:-./data/videos}"
 NUM_STREAMS="${NUM_STREAMS:-2}"
 FPS="${FPS:-15}"
 WIDTH="${WIDTH:-640}"

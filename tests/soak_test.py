@@ -1,24 +1,8 @@
 #!/usr/bin/env python3
-"""5-minute automated soak test + Markdown performance report.
+"""Soak/stress harness: samples /api/stats and writes a Markdown report.
 
-Methodology
------------
-1. Launch the real engine (or attach with --external) and sample /api/stats at
-   1 Hz for ``--duration`` seconds (default 300 = 5 minutes).
-2. Memory-leak check: ordinary least-squares slope of RSS (MB) vs time (hours).
-   A healthy bounded pipeline has slope ~0; we fail above ``--max-leak-mb-h``
-   (default 5 MB/h) or an absolute drift above 30 MB. The fixed-size ring
-   buffers and bounded latency deques are what make the slope flat.
-3. Latency check: p99 of end-to-end latency must stay below ``--max-p99-ms``
-   (default 500 ms) AND the last third of the run must not be materially worse
-   than the first third (no degradation under sustained load).
-4. Stability check: engine process alive, no OOM kill, no sustained CRITICAL
-   backpressure state (transient throttling is expected and is reported).
-
-Run:
-    python tests/soak_test.py                 # full 5 min
-    python tests/soak_test.py --quick          # 20 s smoke
-    python tests/soak_test.py --external       # attach to running server
+Uses a robust post-warmup RSS slope, latency percentiles, and crash counts.
+Attach with --external, or let it launch the engine itself.
 """
 
 from __future__ import annotations

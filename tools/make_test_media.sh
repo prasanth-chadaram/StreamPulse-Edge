@@ -3,4 +3,4 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PY="${PYTHON:-python3}"
-"$PY" "$HERE/make_test_media.py" --out "${MEDIA_DIR:-./data/media}" "$@"
+"$PY" "$HERE/make_test_media.py" --out "${DATA_DIR:-./data/media}" "$@"
